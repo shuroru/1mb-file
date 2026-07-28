@@ -2,161 +2,45 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Web版 H2testw（GitHubファイル対応）</title>
+    <title>Web版 H2testw プロフェッショナル</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <h1>Web版 H2testw</h1>
-    
-    <!-- 1. GitHubからのダウンロード処理 -->
-    <section>
-        <h2>Step 1: テスト用ファイルのダウンロード</h2>
-        <p>GitHub上のテスト用ファイル（1KB）をパソコン（SDカード等）に保存します。</p>
-        <button id="downloadBtn">GitHubからファイルをダウンロード</button>
-    </section>
+<body class="_0x1a">
+    <div class="_0x2b">
+        <h1 class="_0x3c">Web版 H2testw</h1>
+        
+        <!-- Step 1: テストファイル作成 -->
+        <section class="_0x4d">
+            <h2 class="_0x5e">Step 1: テスト用ファイルの作成</h2>
+            <div class="_0x7a">
+                <label>サイズ (MB): <input type="number" id="fileSize" value="50" min="1" max="10000" class="_0x8b"></label>
+                <button id="createBtn" class="_0x9c _0x0d">ファイルを作成・保存</button>
+            </div>
+        </section>
 
-    <hr>
+        <!-- Step 2: フォルダ選択＆チェック -->
+        <section class="_0x4d">
+            <h2 class="_0x5e">Step 2: 保存先フォルダの選択と検証</h2>
+            <p class="_0x6f">※テストするフォルダの中身はテストファイルのみにしてください。</p>
+            <div class="_0x7a">
+                <button id="dirCheckBtn" class="_0x9c _0x1e">フォルダを選んでチェック開始</button>
+                <button id="resumeCheckBtn" class="_0x9c _0x2f" style="display:none;">切断されたので再指定して再開</button>
+            </div>
 
-    <!-- 2. ディレクトリを読むAPI ＆ チェック処理 -->
-    <section>
-        <h2>Step 2: 保存先フォルダの選択と一括チェック</h2>
-        <p>※テストするフォルダの中身は<b>必ず空</b>（またはテストファイルのみ）にしておいてね！</p>
-        <button id="dirCheckBtn">フォルダを選んでチェック開始</button>
-    </section>
+            <!-- プログレスバーエリア -->
+            <div class="_0x3a">
+                <div id="progressBar" class="_0x4b">0%</div>
+            </div>
+        </section>
 
-    <hr>
+        <!-- ログ出力エリア -->
+        <section class="_0x4d _0x5c">
+            <h3 class="_0x5e">処理ログ</h3>
+            <pre id="log" class="_0x6d"></pre>
+        </section>
+    </div>
 
-    <h3>結果ログ:</h3>
-    <pre id="log" style="background: #f4f4f4; padding: 10px; border: 1px solid #ccc; height: 200px; overflow-y: auto;"></pre>
-
-    <script>
-        const logBox = document.getElementById('log');
-        function log(message) {
-            logBox.textContent += message + '\n';
-            logBox.scrollTop = logBox.scrollHeight;
-        }
-
-        // --- 1. GitHubからファイルを取得してダウンロードさせる処理 ---
-        document.getElementById('downloadBtn').addEventListener('click', async () => {
-            const fileUrl = "https://shuroru.github.io/1mb-file/0";
-            log(`[ダウンロード中] GitHubからファイルを取得しています...`);
-
-            try {
-                const response = await fetch(fileUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTPエラー! ステータス: ${response.status}`);
-                }
-
-                const blob = await response.blob();
-                
-                // 自動でパソコンに保存させる
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "h2test_target.dat"; // 保存する時のファイル名
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                log(`[完了] テストファイルのダウンロードを開始しました！SDカードなどのフォルダに保存してね。`);
-
-            } catch (error) {
-                log(`[エラー] ダウンロードに失敗しました: ${error.message}`);
-            }
-        });
-
-        // --- 2. ディレクトリを読むAPI ＆ 安全・空チェック ＆ 検証 ---
-        document.getElementById('dirCheckBtn').addEventListener('click', async () => {
-            if (!window.showDirectoryPicker) {
-                log(`[エラー] お使いのブラウザはこの機能に対応していません。`);
-                return;
-            }
-
-            try {
-                log(`[操作待ち] フォルダ選択ウインドウを開きます...`);
-                const dirHandle = await window.showDirectoryPicker();
-                log(`[スキャン中] 「${dirHandle.name}」の中身を確認しています...`);
-
-                let isSystemOrUserDrive = false;
-                const topLevelDangerous = ['windows', 'program files', 'program files (x86)', 'users', 'system32', 'perflogs'];
-
-                if (topLevelDangerous.includes(dirHandle.name.toLowerCase())) {
-                    isSystemOrUserDrive = true;
-                }
-
-                let itemCount = 0;
-                let hasTestFile = false;
-
-                for await (const entry of dirHandle.values()) {
-                    itemCount++;
-                    const lowerName = entry.name.toLowerCase();
-
-                    if (topLevelDangerous.includes(lowerName)) {
-                        isSystemOrUserDrive = true;
-                        log(`[検知] システムまたはユーザー親フォルダ（${entry.name}）を発見！`);
-                    }
-
-                    if (entry.kind === 'directory') {
-                        try {
-                            const subDirHandle = await dirHandle.getDirectoryHandle(entry.name);
-                            for await (const subEntry of subDirHandle.values()) {
-                                const subName = subEntry.name.toLowerCase();
-                                if (subName === 'desktop' || subName === 'documents' || subName === 'downloads') {
-                                    isSystemOrUserDrive = true;
-                                    log(`[検知] ユーザーフォルダの内部構造（${entry.name} / ${subEntry.name}）を検出しました！`);
-                                    break;
-                                }
-                            }
-                        } catch (e) {}
-                    }
-
-                    // テストファイル（h2test_target.dat または 0）を見つけたかチェック
-                    if (entry.kind === 'file' && (entry.name.startsWith('h2test_') || entry.name === '0')) {
-                        hasTestFile = true;
-                    }
-                }
-
-                // ① Cドライブ・ユーザー領域の警告
-                if (isSystemOrUserDrive) {
-                    const forceRun = confirm(`⚠️ 超重要警告：PCの内部ストレージ（Cドライブ・ユーザー領域）と判定されました！\n\n「${dirHandle.name}」の周辺には重要な個人データやOSのファイルが含まれています。本当にここで続行しますか？`);
-                    if (!forceRun) {
-                        log(`[中断] 安全のため処理を中止しました。`);
-                        return;
-                    }
-                }
-
-                // ② フォルダの空チェック
-                log(`[情報] フォルダ内のアイテム数: ${itemCount}個`);
-                
-                if (itemCount === 0) {
-                    log(`[警告] フォルダが完全に空です！テストファイルを保存してからもう一度選んでね。`);
-                    return;
-                } else if (!hasTestFile) {
-                    log(`[警告] フォルダの中にテストファイルが見つかりません。フォルダ内を確認してね！`);
-                }
-
-                log(`[読込中] テストファイルの検証を開始します...`);
-                
-                for await (const entry of dirHandle.values()) {
-                    if (entry.kind === 'file' && (entry.name.startsWith('h2test_') || entry.name === '0')) {
-                        log(`[発見] テストファイル: ${entry.name}`);
-
-                        const file = await entry.getFile();
-                        const text = await file.text();
-
-                        // 簡易チェック（中身が読めるか）
-                        log(`[成功] "${entry.name}" の読み込みに成功しました！サイズ: ${file.size} バイト✨`);
-                    }
-                }
-
-            } catch (error) {
-                if (error.name !== 'AbortError') {
-                    log(`[エラー] 処理に失敗しました: ${error.message}`);
-                } else {
-                    log(`[キャンセル] フォルダの選択がキャンセルされました。`);
-                }
-            }
-        });
-    </script>
+    <!-- 難読化されたJSを読み込み -->
+    <script src="script.js"></script>
 </body>
 </html>
